@@ -1,145 +1,144 @@
 import React, { useState } from 'react';
-import { TxType, CategoryInfo } from '../types';
+import { TxType, CategoryInfo, Transaction } from '../types';
 
 interface TxModalProps {
-  isOpen: boolean;
   categories: CategoryInfo[];
   onClose: () => void;
-  onSave: (tx: {
-    name: string;
-    amount: number;
-    type: TxType;
-    cat: string;
-    date: string;
-    note?: string;
-  }) => void;
-  onNavigateToSmart: () => void;
+  onAddTransaction: (tx: Omit<Transaction, 'id'>) => void;
 }
 
 export const TxModal: React.FC<TxModalProps> = ({
-  isOpen,
   categories,
   onClose,
-  onSave,
-  onNavigateToSmart,
+  onAddTransaction,
 }) => {
   const [type, setType] = useState<TxType>('expense');
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [cat, setCat] = useState(categories[0]?.name || 'อาหาร');
-  const [dateType, setDateType] = useState('วันนี้');
-
-  if (!isOpen) return null;
+  const [dateType, setDateType] = useState<'today' | 'yesterday' | 'custom'>('today');
+  const [customDate, setCustomDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [note, setNote] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const trimmedName = name.trim();
-    const numAmount = Number(amount);
+    const num = Number(amount);
+    if (!name.trim() || isNaN(num) || num <= 0) return;
 
-    if (!trimmedName || isNaN(numAmount) || numAmount <= 0) {
-      alert('กรุณากรอกชื่อรายการและจำนวนเงินให้ถูกต้อง');
-      return;
+    let displayDate = 'วันนี้';
+    let rawIsoDate = new Date().toISOString().slice(0, 10);
+
+    if (dateType === 'yesterday') {
+      displayDate = 'เมื่อวาน';
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      rawIsoDate = d.toISOString().slice(0, 10);
+    } else if (dateType === 'custom') {
+      const parts = customDate.split('-');
+      if (parts.length === 3) {
+        displayDate = `${parseInt(parts[2], 10)}/${parseInt(parts[1], 10)}`;
+      } else {
+        displayDate = customDate;
+      }
+      rawIsoDate = customDate;
     }
 
-    onSave({
-      name: trimmedName,
-      amount: numAmount,
+    onAddTransaction({
+      name: name.trim(),
+      amount: num,
       type,
       cat: type === 'income' ? 'รายรับ' : cat,
-      date: dateType,
+      date: displayDate,
+      rawDate: rawIsoDate,
+      note: note.trim() || undefined,
     });
 
-    setName('');
-    setAmount('');
     onClose();
   };
 
   return (
     <div className="fixed inset-0 bg-black/45 backdrop-blur-2xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-[24px] p-6 sm:p-7 max-w-[430px] w-full shadow-2xl border border-[#e6ebe6] animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-[24px] p-6 sm:p-7 max-w-md w-full shadow-2xl border border-[#e6ebe6] animate-in fade-in zoom-in-95 duration-150">
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-[#17211b]">เพิ่มรายการ 💸</h2>
+          <h3 className="text-xl font-black text-[#17211b]">บันทึกรายการ 💸</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 text-lg w-8 h-8 rounded-lg grid place-items-center"
+            className="text-gray-400 hover:text-gray-600 text-lg w-8 h-8 rounded-lg grid place-items-center cursor-pointer"
           >
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Type Selector Tabs */}
-          <div>
-            <label className="text-xs font-semibold text-[#17211b] block mb-1.5">ประเภท</label>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-[#f5f7f3] rounded-xl border border-[#e6ebe6]">
-              <button
-                type="button"
-                onClick={() => setType('expense')}
-                className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                  type === 'expense'
-                    ? 'bg-white text-[#d76d6d] shadow-xs'
-                    : 'text-[#69736b] hover:text-[#17211b]'
-                }`}
-              >
-                📉 รายจ่าย
-              </button>
-              <button
-                type="button"
-                onClick={() => setType('income')}
-                className={`py-2 text-xs font-bold rounded-lg transition-all ${
-                  type === 'income'
-                    ? 'bg-white text-[#3b9660] shadow-xs'
-                    : 'text-[#69736b] hover:text-[#17211b]'
-                }`}
-              >
-                📈 รายรับ
-              </button>
-            </div>
-          </div>
+        {/* Type Toggle: Expense vs Income */}
+        <div className="grid grid-cols-2 p-1 bg-[#f1f5f1] rounded-2xl mb-4">
+          <button
+            type="button"
+            onClick={() => setType('expense')}
+            className={`py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              type === 'expense'
+                ? 'bg-white text-[#d76d6d] shadow-xs'
+                : 'text-[#778178] hover:text-[#17211b]'
+            }`}
+          >
+            📉 รายจ่าย
+          </button>
+          <button
+            type="button"
+            onClick={() => setType('income')}
+            className={`py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              type === 'income'
+                ? 'bg-white text-[#25502e] shadow-xs'
+                : 'text-[#778178] hover:text-[#17211b]'
+            }`}
+          >
+            📈 รายรับ
+          </button>
+        </div>
 
-          {/* Name Field */}
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Item Name */}
           <div>
-            <label className="text-xs font-semibold text-[#17211b] block mb-1.5">
+            <label className="text-xs font-bold text-[#17211b] block mb-1">
               ชื่อรายการ
             </label>
             <input
               type="text"
               required
               autoFocus
+              placeholder={type === 'expense' ? 'เช่น กาแฟลาเต้, ข้าวกะเพรา' : 'เช่น เงินเดือน, ค่าจ้างสอนพิเศษ'}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={type === 'expense' ? 'เช่น ค่าอาหาร, ค่าน้ำมัน' : 'เช่น เงินเดือน, ขายของ'}
-              className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-sm font-medium text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
+              className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-sm font-semibold text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
             />
           </div>
 
-          {/* Amount Field */}
+          {/* Amount */}
           <div>
-            <label className="text-xs font-semibold text-[#17211b] block mb-1.5">
+            <label className="text-xs font-bold text-[#17211b] block mb-1">
               จำนวนเงิน (บาท)
             </label>
             <input
               type="number"
-              min="1"
+              min="0.5"
               step="any"
               required
+              placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="80"
-              className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-base font-bold text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
+              className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-lg font-black text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
             />
           </div>
 
-          {/* Category Field (if expense) */}
+          {/* Category Dropdown (Populated from dynamic Custom Categories!) */}
           {type === 'expense' && (
             <div>
-              <label className="text-xs font-semibold text-[#17211b] block mb-1.5">
-                หมวดหมู่
+              <label className="text-xs font-bold text-[#17211b] block mb-1">
+                หมวดหมู่ (ดึงข้อมูลอัตโนมัติจากหมวดหมู่ของคุณ)
               </label>
               <select
                 value={cat}
                 onChange={(e) => setCat(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-sm text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
+                className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-sm font-semibold text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
               >
                 {categories.map((c) => (
                   <option key={c.name} value={c.name}>
@@ -147,53 +146,88 @@ export const TxModal: React.FC<TxModalProps> = ({
                   </option>
                 ))}
               </select>
-              <div className="mt-1.5 flex items-center justify-between text-[11px] text-[#778178]">
-                <span>ต้องการหมวดใหม่?</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onNavigateToSmart();
-                  }}
-                  className="text-[#25502e] font-bold hover:underline"
-                >
-                  ไปที่ ✨ Smart Dashboard
-                </button>
-              </div>
             </div>
           )}
 
-          {/* Date Selector */}
+          {/* Date Picker */}
           <div>
-            <label className="text-xs font-semibold text-[#17211b] block mb-1.5">วันที่</label>
-            <select
-              value={dateType}
-              onChange={(e) => setDateType(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-sm text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
-            >
-              <option value="วันนี้">วันนี้</option>
-              <option value="เมื่อวาน">เมื่อวาน</option>
-              <option value="23 ก.ย.">23 ก.ย.</option>
-              <option value="22 ก.ย.">22 ก.ย.</option>
-              <option value="21 ก.ย.">21 ก.ย.</option>
-              <option value="20 ก.ย.">20 ก.ย.</option>
-            </select>
+            <label className="text-xs font-bold text-[#17211b] block mb-1">
+              วันที่
+            </label>
+            <div className="grid grid-cols-3 gap-2 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setDateType('today')}
+                className={`py-2 rounded-xl transition-all ${
+                  dateType === 'today'
+                    ? 'bg-[#18231c] text-white shadow-xs'
+                    : 'bg-[#f1f5f1] text-[#4b5563]'
+                }`}
+              >
+                วันนี้
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateType('yesterday')}
+                className={`py-2 rounded-xl transition-all ${
+                  dateType === 'yesterday'
+                    ? 'bg-[#18231c] text-white shadow-xs'
+                    : 'bg-[#f1f5f1] text-[#4b5563]'
+                }`}
+              >
+                เมื่อวาน
+              </button>
+              <button
+                type="button"
+                onClick={() => setDateType('custom')}
+                className={`py-2 rounded-xl transition-all ${
+                  dateType === 'custom'
+                    ? 'bg-[#18231c] text-white shadow-xs'
+                    : 'bg-[#f1f5f1] text-[#4b5563]'
+                }`}
+              >
+                เลือกวันที่
+              </button>
+            </div>
+
+            {dateType === 'custom' && (
+              <input
+                type="date"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="mt-2 w-full px-3.5 py-2 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
+              />
+            )}
           </div>
 
-          {/* Actions */}
-          <div className="flex justify-end gap-2.5 pt-3">
+          {/* Note */}
+          <div>
+            <label className="text-xs font-bold text-[#17211b] block mb-1">
+              บันทึกย่อ (ไม่บังคับ)
+            </label>
+            <input
+              type="text"
+              placeholder="เช่น ร้านลุงหนวด, หารกับเพื่อน 3 คน"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="w-full px-3.5 py-2 bg-[#fbfdfb] border border-[#e6ebe6] rounded-xl text-xs font-medium text-[#17211b] focus:outline-none focus:ring-2 focus:ring-[#8fd19d]"
+            />
+          </div>
+
+          {/* Action buttons: Cancel / Save */}
+          <div className="flex gap-2 justify-end pt-3">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2.5 bg-[#edf3ee] hover:bg-[#e1e9e2] text-[#4b5563] text-xs font-semibold rounded-xl transition-colors"
+              className="px-4 py-2.5 bg-[#edf3ee] hover:bg-[#e1e9e2] text-[#4b5563] text-xs font-semibold rounded-xl transition-colors cursor-pointer"
             >
               ยกเลิก
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-[#18231c] hover:bg-[#28382c] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+              className="px-5 py-2.5 bg-[#18231c] hover:bg-[#28382c] text-white text-xs font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
             >
-              บันทึก
+              บันทึกรายการ
             </button>
           </div>
         </form>

@@ -1,29 +1,36 @@
 import React from 'react';
-import { Transaction, CategoryInfo, Goal } from '../types';
+import { Transaction, Goal, BudgetMap, CategoryInfo } from '../types';
 import { formatMoney, getCategoryIcon } from '../data/initialData';
+import {
+  IncomeVsExpenseChart,
+  CategoryDoughnutChart,
+  SpendingTrendBarChart,
+} from './InteractiveCharts';
 
 interface AnalysisViewProps {
   transactions: Transaction[];
-  categories: CategoryInfo[];
   goals: Goal[];
+  budgets: BudgetMap;
+  categories: CategoryInfo[];
 }
 
 export const AnalysisView: React.FC<AnalysisViewProps> = ({
   transactions,
-  categories,
   goals,
+  budgets,
+  categories,
 }) => {
   const income = transactions
     .filter((x) => x.type === 'income')
-    .reduce((a, b) => a + b.amount, 0);
+    .reduce((sum, x) => sum + x.amount, 0);
 
   const expenses = transactions.filter((x) => x.type === 'expense');
-  const totalExpense = expenses.reduce((a, b) => a + b.amount, 0);
-  const balance = income - totalExpense;
+  const totalExpense = expenses.reduce((sum, x) => sum + x.amount, 0);
+  const netSavings = income - totalExpense;
+  const savingRate = income > 0 ? Math.round((netSavings / income) * 100) : 0;
+  const avgPerDay = Math.round(totalExpense / 30);
 
-  const savingRate = income > 0 ? Math.max(0, Math.round((balance / income) * 100)) : 0;
-
-  // Category totals
+  // Group by category
   const catTotals: Record<string, number> = {};
   expenses.forEach((x) => {
     catTotals[x.cat] = (catTotals[x.cat] || 0) + x.amount;
@@ -31,144 +38,128 @@ export const AnalysisView: React.FC<AnalysisViewProps> = ({
 
   const sortedCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]);
   const topCat = sortedCats[0];
-  const topCatName = topCat ? topCat[0] : 'ไม่มี';
-  const topCatAmt = topCat ? topCat[1] : 0;
-
-  const avgExpense = expenses.length > 0 ? Math.round(totalExpense / expenses.length) : 0;
-
-  // Financial Health Status
-  let healthGrade = 'ดีเยี่ยม';
-  let healthColor = 'text-emerald-700 bg-emerald-50';
-  if (savingRate < 10 && balance >= 0) {
-    healthGrade = 'ควรระวัง (ออมน้อย)';
-    healthColor = 'text-amber-700 bg-amber-50';
-  } else if (balance < 0) {
-    healthGrade = 'ติดลบ (รายจ่ายเกินรับ)';
-    healthColor = 'text-rose-700 bg-rose-50';
-  } else if (savingRate >= 20) {
-    healthGrade = 'ยอดเยี่ยม (ออมเกิน 20%)';
-    healthColor = 'text-emerald-700 bg-emerald-50';
-  }
 
   return (
-    <div className="space-y-5">
-      {/* 3 Key Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-[17px]">
-        {/* Saving Rate */}
-        <div className="bg-white border border-[#e6ebe6] rounded-[21px] p-6 shadow-xs">
-          <div className="text-xs font-bold text-[#778178] uppercase tracking-wider">
-            📊 อัตราการออม
-          </div>
-          <div className="text-[36px] font-black text-[#17211b] tracking-tight my-2">
-            {savingRate}%
-          </div>
-          <div className="text-xs text-[#778178]">จากรายรับเดือนนี้ ({formatMoney(income)})</div>
+    <div className="space-y-6">
+      {/* Top Header Card */}
+      <div className="bg-white border border-[#e6ebe6] rounded-[22px] p-6 shadow-xs">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-2xl">📊</span>
+          <h2 className="text-xl sm:text-2xl font-black text-[#17211b]">วิเคราะห์การเงิน</h2>
         </div>
+        <p className="text-xs sm:text-[13px] text-[#778178]">
+          มองเห็นพฤติกรรมการใช้เงินและการออมของคุณผ่านกราฟและตัวชี้วัดเชิงลึก
+        </p>
 
-        {/* Top Spending Category */}
-        <div className="bg-white border border-[#e6ebe6] rounded-[21px] p-6 shadow-xs">
-          <div className="text-xs font-bold text-[#778178] uppercase tracking-wider">
-            🏆 หมวดที่ใช้มากที่สุด
+        {/* 4 Health Metrics Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5">
+          <div className="p-3.5 bg-[#fafcfa] border border-[#edf1ed] rounded-2xl">
+            <span className="text-xs text-[#778178] block">อัตราการออม</span>
+            <span className="text-2xl font-black text-[#25502e] block mt-1">{savingRate}%</span>
+            <span className="text-[11px] text-[#556959]">
+              {savingRate >= 20 ? '✅ เกินเกณฑ์มาตรฐาน 20%' : '⚠️ ต่ำกว่าเกณฑ์ 20%'}
+            </span>
           </div>
-          <div className="text-[26px] font-black text-[#17211b] tracking-tight my-2 flex items-center gap-2">
-            <span>{getCategoryIcon(topCatName, categories)}</span>
-            <span className="truncate">{topCatName}</span>
-          </div>
-          <div className="text-xs text-[#778178]">
-            รวม {formatMoney(topCatAmt)}{' '}
-            {totalExpense > 0 && `(${Math.round((topCatAmt / totalExpense) * 100)}% ของรายจ่าย)`}
-          </div>
-        </div>
 
-        {/* Average Expense */}
-        <div className="bg-white border border-[#e6ebe6] rounded-[21px] p-6 shadow-xs">
-          <div className="text-xs font-bold text-[#778178] uppercase tracking-wider">
-            💸 ค่าใช้จ่ายเฉลี่ย
+          <div className="p-3.5 bg-[#fafcfa] border border-[#edf1ed] rounded-2xl">
+            <span className="text-xs text-[#778178] block">รายจ่ายเฉลี่ยต่อวัน</span>
+            <span className="text-2xl font-black text-[#17211b] block mt-1">
+              {formatMoney(avgPerDay)}
+            </span>
+            <span className="text-[11px] text-[#778178]">คำนวณฐาน 30 วัน</span>
           </div>
-          <div className="text-[26px] font-black text-[#17211b] tracking-tight my-2">
-            {formatMoney(avgExpense)}
+
+          <div className="p-3.5 bg-[#fafcfa] border border-[#edf1ed] rounded-2xl">
+            <span className="text-xs text-[#778178] block">หมวดที่จ่ายสูงสุด</span>
+            <span className="text-2xl font-black text-[#17211b] block mt-1 truncate">
+              {topCat ? topCat[0] : '-'}
+            </span>
+            <span className="text-[11px] text-[#d76d6d] font-semibold">
+              {topCat ? formatMoney(topCat[1]) : '฿0'}
+            </span>
           </div>
-          <div className="text-xs text-[#778178]">ต่อรายการ ({expenses.length} รายการ)</div>
+
+          <div className="p-3.5 bg-[#fafcfa] border border-[#edf1ed] rounded-2xl">
+            <span className="text-xs text-[#778178] block">เงินคงเหลือสุทธิ</span>
+            <span
+              className={`text-2xl font-black block mt-1 ${
+                netSavings >= 0 ? 'text-[#3b9660]' : 'text-[#d76d6d]'
+              }`}
+            >
+              {formatMoney(netSavings)}
+            </span>
+            <span className="text-[11px] text-[#778178]">
+              {netSavings >= 0 ? 'สภาพคล่องเพียงพอ' : 'ติดลบ'}
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Visual Category Distribution */}
-      <div className="bg-white border border-[#e6ebe6] rounded-[21px] p-6 shadow-xs">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="text-base font-bold text-[#17211b]">สัดส่วนการใช้จ่ายแยกตามหมวดหมู่</h3>
-          <span className="text-xs text-[#778178]">รายจ่ายรวม {formatMoney(totalExpense)}</span>
-        </div>
+      {/* Row 2: Charts (Chart 1 & Chart 2) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px]">
+        <IncomeVsExpenseChart transactions={transactions} />
+        <CategoryDoughnutChart transactions={transactions} categories={categories} />
+      </div>
 
-        <div className="space-y-3.5">
-          {sortedCats.map(([cat, amt]) => {
-            const share = totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0;
-            return (
-              <div key={cat}>
-                <div className="flex justify-between items-center text-xs mb-1.5 font-medium">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{getCategoryIcon(cat, categories)}</span>
-                    <span className="font-semibold text-[#17211b]">{cat}</span>
-                    <span className="text-[#778178] text-[11px]">({share}%)</span>
+      {/* Row 3: Chart 3 (Bar Chart) & Deep Category Table */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[18px]">
+        <SpendingTrendBarChart transactions={transactions} />
+
+        {/* Detailed Category Table */}
+        <div className="bg-white border border-[#e6ebe6] rounded-[22px] p-6 shadow-xs flex flex-col justify-between">
+          <div>
+            <h3 className="text-base font-bold text-[#17211b] mb-1">รายละเอียดรายจ่ายตามหมวด</h3>
+            <p className="text-xs text-[#778178] mb-4">
+              เรียงลำดับจากหมวดที่ใช้จ่ายเงินมากที่สุดไปหาน้อยที่สุด
+            </p>
+
+            <div className="divide-y divide-[#edf1ed] max-h-[260px] overflow-y-auto pr-1">
+              {sortedCats.map(([cat, amt]) => {
+                const limit = budgets[cat] || 0;
+                const pctOfTotal = totalExpense > 0 ? Math.round((amt / totalExpense) * 100) : 0;
+                const pctOfBudget = limit > 0 ? Math.round((amt / limit) * 100) : 0;
+
+                return (
+                  <div key={cat} className="py-2.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-lg">{getCategoryIcon(cat, categories)}</span>
+                      <div>
+                        <div className="font-bold text-[#17211b]">{cat}</div>
+                        <div className="text-[10px] text-[#778178]">
+                          {pctOfTotal}% ของรายจ่ายทั้งหมด
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="font-black text-[#17211b]">{formatMoney(amt)}</div>
+                      <div className="text-[10px] text-[#778178]">
+                        {limit > 0 ? (
+                          <span
+                            className={
+                              pctOfBudget > 100
+                                ? 'text-rose-600 font-bold'
+                                : pctOfBudget >= 80
+                                ? 'text-amber-600 font-semibold'
+                                : 'text-[#556959]'
+                            }
+                          >
+                            งบ: {pctOfBudget}% ({formatMoney(limit)})
+                          </span>
+                        ) : (
+                          'ไม่ได้ตั้งงบ'
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="font-bold text-[#17211b]">{formatMoney(amt)}</span>
-                </div>
-                <div className="h-2.5 w-full bg-[#edf1ed] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-[#8fd19d] rounded-full transition-all duration-500"
-                    style={{ width: `${share}%` }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Detailed Analysis & Insights */}
-      <div className="bg-white border border-[#e6ebe6] rounded-[21px] p-6 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-[#17211b]">สรุปพฤติกรรมการเงิน</h3>
-          <span className={`text-xs px-3 py-1 rounded-full font-bold ${healthColor}`}>
-            ระดับสุขภาพการเงิน: {healthGrade}
-          </span>
-        </div>
-
-        <div className="text-xs sm:text-[13px] leading-relaxed text-[#2c3e32] space-y-3">
-          <p>
-            จากข้อมูลปัจจุบัน รายจ่ายหมวด <b>{topCatName}</b> มีสัดส่วนสูงสุดที่{' '}
-            <b>{formatMoney(topCatAmt)}</b> และเงินคงเหลือสุทธิอยู่ที่{' '}
-            <b className={balance >= 0 ? 'text-[#3b9660]' : 'text-[#d76d6d]'}>
-              {formatMoney(balance)}
-            </b>
-            {balance >= 0
-              ? ` โดยมีอัตราการออม ${savingRate}% ซึ่งเป็นสัญญาณที่ดีสำหรับความมั่นคงทางการเงิน`
-              : ' ซึ่งขณะนี้รายจ่ายสูงกว่ารายรับ แนะนำให้ตรวจสอบรายการไม่จำเป็น'}
-          </p>
-
-          <div className="bg-[#f5f9f5] border border-[#dff3e3] rounded-xl p-4 space-y-2">
-            <div className="font-bold text-[#25502e] flex items-center gap-1.5">
-              <span>💡</span> ข้อสังเกตและคำแนะนำเชิงปฏิบัติการ:
+                );
+              })}
             </div>
-            <ul className="list-disc list-inside space-y-1 text-xs text-[#556959]">
-              <li>
-                ควรจัดสรรเงินออมส่วนเกิน{' '}
-                <b>{formatMoney(Math.max(0, Math.round(balance * 0.4)))}</b> เข้าเป้าหมาย{' '}
-                <b>{goals[0]?.name || 'เงินออมเพื่ออนาคต'}</b> ก่อนนำไปใช้จ่ายอย่างอื่น
-              </li>
-              <li>
-                การกระจายรายจ่ายในหมวดจำเป็น (อาหาร, เดินทาง) คิดเป็น{' '}
-                <b>
-                  {Math.round(
-                    (((catTotals['อาหาร'] || 0) + (catTotals['เดินทาง'] || 0)) /
-                      Math.max(1, totalExpense)) *
-                      100
-                  )}
-                  %
-                </b>{' '}
-                ของรายจ่ายทั้งหมด ถือเป็นสัดส่วนที่สมดุล
-              </li>
-              <li>หมั่นอัปเดตบันทึกทุกวันเพื่อการวิเคราะห์แนวโน้มที่แม่นยำยิ่งขึ้น</li>
-            </ul>
+          </div>
+
+          <div className="pt-3 border-t border-[#edf1ed] text-xs text-[#778178] flex justify-between">
+            <span>รวม {sortedCats.length} หมวดหมู่ที่มีการใช้จ่าย</span>
+            <span className="font-bold text-[#17211b]">รวม {formatMoney(totalExpense)}</span>
           </div>
         </div>
       </div>
