@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Prompt', 'Inter', system-ui, -apple-system, sans-serif;
+    color: #17211b;
+    background-color: #f5f7f3;
+  }
+}
+
+:root {
+  --bg: #f5f7f3;
+  --card: #ffffff;
+  --ink: #17211b;
+  --muted: #778178;
+  --green: #8fd19d;
+  --green2: #dff3e3;
+  --dark: #18231c;
+  --yellow: #ffd86b;
+  --red: #e98181;
+  --line: #e6ebe6;
+  --shadow: 0 12px 32px rgba(23, 38, 28, 0.07);
+}

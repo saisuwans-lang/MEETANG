@@ -1,0 +1,6 @@
+{
+  "name": "MEETANG — Personal Finance (มีตังค์)",
+  "description": "ระบบจัดการการเงินส่วนบุคคล บันทึกรายรับ-รายจ่าย วางแผนงบประมาณ ตั้งเป้าหมายการออม พร้อม AI วิเคราะห์การเงินอัจฉริยะ",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
